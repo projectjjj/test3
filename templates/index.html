@@ -5,13 +5,12 @@
     <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <!--    <link rel="shortcut icon" href="/static/images/favicon.png">-->
+    <link rel="shortcut icon" href="/static/images/favicon.png">
 
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
           integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
           crossorigin="anonymous">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css">
 
     <!-- JS -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
@@ -24,6 +23,7 @@
 
     <!-- 구글폰트 -->
     <link href="https://fonts.googleapis.com/css?family=Stylish&display=swap" rel="stylesheet">
+
 
     <title>스파르타코딩클럽 | 나홀로 메모장</title>
 
@@ -52,103 +52,154 @@
         }
     </style>
     <script>
+        let order = "asc";
+
         $(document).ready(function () {
             $("#cards-box").html("");
             showArticles();
         });
 
-        let count = 0;
-
         function openClose() {
-            // id 값 post-box의 display 값이 block 이면(= 눈에 보이면)
             if ($("#post-box").css("display") == "block") {
-                // post-box를 가리고
                 $("#post-box").hide();
-                // 다시 버튼을 클릭하면, 박스 열기를 할 수 있게 텍스트 바꿔두기
                 $("#btn-post-box").text("포스팅 박스 열기");
             } else {
-                // 아니면(눈에 보이지 않으면) post-box를 펴라
+                $("#post-url").val('');
+                $("#post-comment").val('');
                 $("#post-box").show();
-                // 다시 버튼을 클릭하면, 박스 닫기를 할 수 있게 텍스트 바꿔두기
                 $("#btn-post-box").text("포스팅 박스 닫기");
             }
         }
 
-        function postArticle() {
-            $.ajax({
-                type: "POST",
-                url: "/post",
-                data: {
-                    post_url_give: $('#post-url').val(),
-                    post_comment_give: $('#post-comment').val(),
-                    views_give: 0
-                },
-                success: function (response) {
-                    alert(response['result'])
-                    window.location.reload();
-                }
-            })
+        function postingArticle() {
+            let url = $("#post-url").val();
+            let comment = $("#post-comment").val();
+            let idx = $("#post-idx").val();
+
+            if (idx != '') {
+                $.ajax({
+                    type: "PUT",
+                    url: "/article",
+                    data: {idx: idx, title: url, content: comment},
+                    success: function (response) {
+                        if (response["result"] == "success") {
+                            alert("포스팅 업데이트 성공!");
+                            window.location.reload();
+                        } else {
+                            alert("서버 오류!");
+                        }
+                    }
+                })
+            } else {
+                $.ajax({
+                    type: "POST",
+                    url: "/article",
+                    data: {title: url, content: comment},
+                    success: function (response) {
+                        if (response["result"] == "success") {
+                            alert("포스팅 성공!");
+                            window.location.reload();
+                        } else {
+                            alert("서버 오류!");
+                        }
+                    }
+                })
+            }
         }
 
         function showArticles() {
             $.ajax({
                 type: "GET",
-                url: "/post",
+                url: `/articles?order=${order}`,
                 data: {},
                 success: function (response) {
-                    let num = 1;
-                    let list = response['result']
-                    for (i = 0; i < list.length; i++) {
-                        let number = parseInt(num) + i
-                        let title = list[i]['제목']
-                        let date = list[i]['날짜']
-                        let content = list[i]['내용']
-                        let views = list[i]['조회수']
-                        let temp_html = `
-                                        <tr>
-                                            <th scope="col">${number}</th>
-                                            <th scope="col"><p onclick='$("#modal-edit").addClass("is-active"); views()' style="cursor: pointer;">${title}</p></th>
-                                            <th scope="col">${date}</th>
-                                            <th scope="col">${views}</th>
-                                            <th scope="col"><button id="delete_button" onclick="deleteArticle('${title}')">삭제</button></th>
-                                            <th scope="col"><button id="delete_button" onclick="deleteArticle('${title}')">수정</button></th>
-                                        </tr>
-                            `
-                        let temp_html2 = `<div class="modal" id="modal-edit">
-            <div class="modal-background" onclick='$("#modal-edit").removeClass("is-active")'></div>
-            <div class="modal-content">
-                <div class="box">
-                    내용 : ${content}
-                </div>
-            </div>
-            <button class="modal-close is-large" aria-label="close"
-                    onclick='$("#modal-edit").removeClass("is-active")'></button>
-        </div>`
-                        $('#list-post').append(temp_html)
-                        $('#list-post2').append(temp_html2)
-
-                        }
+                    $("#list-post").empty();
+                    let articles = response["articles"];
+                    {#여기서 페이지 보여주는 것을 조절할 수 있나?#}
+                    for (let i = 0; i < articles.length; i++) {
+                        makeListPost(articles[i], i);
                     }
-
-                })
-            }
-
-
-
-
-        function deleteArticle(title) {
-            $.ajax({
-                type: "DELETE",
-                url: "/post",
-                data: {
-                    delete_give: title
-                },
-                success: function (response) {
-                    alert(response['result'])
-                    window.location.reload();
                 }
             })
         }
+
+        function getArticle(idx) {
+            $.ajax({
+                type: "GET",
+                url: `/article?idx=${idx}`,
+                data: {},
+                success: function (response) {
+                    let title = response['article']['title']
+                    let content = response['article']['content']
+                    $("#post-url").val(title);
+                    $("#post-comment").val(content);
+                    $("#post-idx").val(idx);
+                    $("#post-box").show();
+                    $("#btn-post-box").text("포스팅 박스 닫기");
+                }
+            })
+        }
+
+        function readArticle(idx) {
+            $.ajax({
+                type: "PUT",
+                url: `/article/${idx}`,
+                data: {},
+                success: function (response) {
+                    console.log(response['article'])
+                    let title = response['article']['title']
+                    let content = response['article']['content']
+                    $('#modal-title').html(title);
+                    $('#modal-content').html(content);
+                    $('#articleModal').modal('show');
+                }
+            })
+        }
+
+        function makeListPost(post, index) {
+            let tempHtml = ` <tr>
+                      <th scope="row">${index + 1}</th>
+                      <td><a href="#" onclick="readArticle(${post['idx']})">${post['title']}</td>
+                      <td>${post['reg_date']}</td>
+                      <td>${post['read_count']}</td>
+                      <td><button type="button" class="btn btn-danger" onclick="deleteArticle(${post['idx']})">삭제</button></td>
+                      <td><button type="button" class="btn btn-primary" onclick="getArticle(${post['idx']})">수정</button></td>
+                      </tr>
+                    `;
+            $("#list-post").append(tempHtml);
+        }
+
+        function deleteArticle(idx) {
+            $.ajax({
+                type: "DELETE",
+                url: `/article?idx=${idx}`,
+                success: function (response) { // 성공하면
+                    if (response["result"] == "success") {
+                        alert("삭제 성공!");
+                        window.location.reload();
+                    } else {
+                        alert("서버 오류!");
+                    }
+                }
+            })
+        }
+
+        function setOrder() {
+            if (order == "asc") {
+                order = "desc";
+                $("#viewOrder").html(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-up-square-fill" viewBox="0 0 16 16">
+  <path d="M2 16a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2zm6.5-4.5V5.707l2.146 2.147a.5.5 0 0 0 .708-.708l-3-3a.5.5 0 0 0-.708 0l-3 3a.5.5 0 1 0 .708.708L7.5 5.707V11.5a.5.5 0 0 0 1 0z"/>
+</svg>`)
+            } else {
+                order = "asc";
+                $("#viewOrder").html(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-down-square-fill" viewBox="0 0 16 16">
+  <path d="M2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2zm6.5 4.5v5.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7.5 10.293V4.5a.5.5 0 0 1 1 0z"/>
+</svg>`)
+            }
+            showArticles();
+        }
+        let page = $("#dropdown").val();
+        console(page)
     </script>
 
 </head>
@@ -173,16 +224,32 @@
                 <label for="post-comment">간단한 내용</label>
                 <textarea id="post-comment" class="form-control" rows="2"></textarea>
             </div>
-            <button type="button" class="btn btn-primary" onclick="postArticle()">기사저장</button>
+            <input id="post-idx" class="form-control" placeholder="" hidden>
+            <button type="button" class="btn btn-primary" onclick="postingArticle()">기사저장</button>
         </div>
     </div>
+    <div class="dropdown">
+  <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+    게시글 숫자
+  </button>
+  <div class="dropdown-menu" aria-labelledby="dropdownMenuButton" id="dropdown">
+    <a class="dropdown-item" href="/" value="3">3</a>
+    <a class="dropdown-item" href="/" value="5">5</a>
+    <a class="dropdown-item" href="/" value="10">10</a>
+  </div>
+</div>
     <table class="table">
         <thead>
         <tr>
             <th scope="col">#</th>
             <th scope="col">제목</th>
             <th scope="col">날짜</th>
-            <th scope="col">조회수</th>
+            <th scope="col">조회<span onclick="setOrder()" id="viewOrder">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                           class="bi bi-arrow-down-square-fill" viewBox="0 0 16 16">
+  <path d="M2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2zm6.5 4.5v5.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7.5 10.293V4.5a.5.5 0 0 1 1 0z"/>
+</svg>
+                  </span></th>
             <th scope="col">삭제</th>
             <th scope="col">수정</th>
         </tr>
@@ -190,9 +257,36 @@
         <tbody id="list-post">
         </tbody>
     </table>
-    <div id="list-post2"></div>
+</div>
+<!-- Modal -->
+<div class="modal fade" id="articleModal" tabindex="-1" role="dialog" aria-labelledby="articleModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modal-title"></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="modal-content">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
 </div>
 
+<nav aria-label="Page navigation example">
+  <ul class="pagination">
+    <li class="page-item"><a class="page-link" href="#">Previous</a></li>
+    <li class="page-item"><a class="page-link" href="#">1</a></li>
+    <li class="page-item"><a class="page-link" href="#">2</a></li>
+    <li class="page-item"><a class="page-link" href="#">3</a></li>
+    <li class="page-item"><a class="page-link" href="#">Next</a></li>
+  </ul>
+</nav>
 </body>
 
 </html>
